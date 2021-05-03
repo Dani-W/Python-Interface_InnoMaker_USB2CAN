@@ -23,3 +23,16 @@ How to install (for python-can):
 	# other interfaces...
 	'myInterface':          ('can.interfaces.can2usb',          'CAN2BUS')
    }
+
+How to use:
+After the successfull installation of the module you should be able to use CAN2USB devices in combination with python-can.
+Inside the Testprogramm folder is a short program that demonstrates the usage of CAN2USB with python can.
+It contains three Python files.
+If the TastaturTest.py is run CAN-messages can be send by pressing 1 or 2 on the keyboard.
+When messages are send or received the associated frames are printed out on the terminal.
+
+The can_lib.py contains a class canLib that creates a Threadsafe Bus with a send-thread and a receive thread. 
+It also creates two queues from CommunicationList.py to create a buffer for the send-messages and the receive-messages.
+Furthermore it contains all vital functions you need to use the CAN2USB-interface with the python-can overlay.
+
+The CommunicationList.py contains a queue and the necessary functions for the queue to work.
