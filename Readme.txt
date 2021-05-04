@@ -36,3 +36,5 @@ It also creates two queues from CommunicationList.py to create a buffer for the 
 Furthermore it contains all vital functions you need to use the CAN2USB-interface with the python-can overlay.
 
 The CommunicationList.py contains a queue and the necessary functions for the queue to work.
+
+The converters.py is contains functions to convert different datatypes.
