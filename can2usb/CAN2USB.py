@@ -1,42 +1,59 @@
+"""
+This module contains the CAN2USB class that enables the communication
+with the Innomaker CAN2USB-Converter via python-can and its documentation.
+"""
+# imports
 from ctypes import *
 import sys
 import os
 import time
 import struct
 import clr
-from can import BusABC, Message, CanError
+from can import BusABC, Message
 
-
-
-
-#Finding the Path of the DLL
-str1=os.path.realpath(__file__)
-str1=str1.replace("CAN2USB.py","InnoMakerUsb2CanLib.dll")
-#print(os.path.realpath(__file__))                  # For Debug Purposes. Should print out the correct path
-#print(str1)
+# Finding the Path of the DLL
+str1 = os.path.realpath(__file__)
+str1 = str1.replace("CAN2USB.py", "InnoMakerUsb2CanLib.dll")
 clr.AddReference(str1)
 from InnoMakerUsb2CanLib import *
 
 
 class CAN2BUS(BusABC):
+    """The CAN2BUS Class is the interface class for the innomaker CAN2BUS.
+        It contains all the necessary functions to enable a communication with the device via USB.
+
+        It is build after the CAN bus abstract class provided by python-can.
+        """
     Device = InnoMakerDevice()
     bus = UsbCan()
 
     # bus.removeDeviceDelegate = bus.RemoveDeviceNotifyDelegate()
     # bus.addDeviceDelegate = bus.AddDeviceNotifyDelegate()
 
-    #initiates the CAN2BUS module and starts searching for a hardware module to connect to
     def __init__(self, channel, can_filters=None, poll_interval=0.01,
                  receive_own_messages=False,
                  bitrate=None, rx_queue_size=1, app_name="CAN2USB",
                  serial=None, fd=False, data_bitrate=None, sjwAbr=0, tseg1Abr=0,
                  tseg2Abr=0, sjwDbr=0, tseg1Dbr=0, tseg2Dbr=0, **kwargs):
+        """Constructs and opens a CAN bus instance of CAN2USB with the given parameter.
+
+                This method should only be called with all below listed parameters to avoid unexpected behaviour:
+
+                :param channel:
+                    The can interface identifier. If only one device is connected the channel should always be set to 0.
+
+                :param bitrate:
+                    The bitrate for the CAN module.
+                    A valid bitrate needs to be selected or otherwise the device cannot start CAN-communication.
+                    For a list of valid bitrates see :meth:`CAN2USB.CAN2USB.connect` for details.
+        """
         canmode = "normal"
-        self.bus.scanInnoMakerDevices() #search for devices connected to USB
+        self.bus.scanInnoMakerDevices()  # search for devices connected to USB
         self.buffer = bytearray(20)
         if self.bus.getInnoMakerDeviceCount() > 0:
             self.channel_info = 'CAN2USB'
-            for i in range(0, self.bus.getInnoMakerDeviceCount()): #todo: should work for more than one CAN2USB but not tested yet
+            for i in range(0,
+                           self.bus.getInnoMakerDeviceCount()):  # todo: should work for more than one CAN2USB but not tested yet
                 self.Device.deviceId = self.bus.getInnoMakerDevice(i).deviceId
                 self.Device.InnoMakerDev = self.bus.getInnoMakerDevice(i).InnoMakerDev
                 self.Device.usbReg = self.bus.getInnoMakerDevice(i).usbReg
@@ -44,11 +61,14 @@ class CAN2BUS(BusABC):
                 self.connect(bitrate, canmode)
             super(CAN2BUS, self).__init__(channel=channel, **kwargs)
         else:
-            #if no hardware CAN2USB was found
+            # if no hardware CAN2USB was found
             print('No Device found')
 
-    #The update-function can be used to start a new search for hardware modules
     def update(self):
+        """The update-function can be used to start a new search for hardware modules.
+            This is an additional function that is provided by the innomakerCAN2USB.dll and
+            is by default not used inside the python-can interface.
+        """
         self.bus.scanInnoMakerDevices()
         if self.bus.getInnoMakerDeviceCount() > 0:
             for i in range(0, self.bus.getInnoMakerDeviceCount()):
@@ -59,9 +79,36 @@ class CAN2BUS(BusABC):
         else:
             print('No Device connected')
 
-    # The connect-function enables the connection between the CAN2USB device and the software
-    # It also sends the predefined configurations to the CAN2USB device
     def connect(self, bitrate, canmode):
+        """Enables the connection between the CAN2USB device and the software.
+            In order to successfully connect to the device two parameters have to be configured.
+                :param bitrate:
+                    Configures the bitrate of the CAN device for the CAN-communication.
+                    Valid bitrates are:
+                     20000,
+                     33330,
+                     40000,
+                     50000,
+                     66660,
+                     80000,
+                     83330,
+                     100000,
+                     125000,
+                     200000,
+                     250000,
+                     400000,
+                     500000,
+                     666000,
+                     800000,
+                     1000000
+
+                :param canmode:
+                    The CAN2USB device has 3 usbCanModes:
+                     normal
+                     loopback
+                     ListenOnly
+                    per default the normal mode ist selected.
+                """
         switchbus = {
             "normal": CAN2BUS.bus.UsbCanMode.UsbCanModeNormal,
             "loopback": CAN2BUS.bus.UsbCanMode.UsbCanModeLoopback,
@@ -102,8 +149,12 @@ class CAN2BUS(BusABC):
                 except Exception:
                     print("Connection failed")
 
-    #shutsdown the device but does NOT reset the internal memory of the device
+    # shutsdown the device but does NOT reset the internal memory of the device
     def shutdown(self):
+        """Shuts down the device and closes the connection.
+            Note: This does NOT reset the device and therefore any memory on the device will remain.
+            e.g. the error counter of the device will not be brought back to 0.
+        """
         try:
             self.bus.UrbResetDevice(self.Device)
             self.bus.closeInnoMakerDevice(self.Device)
@@ -113,13 +164,20 @@ class CAN2BUS(BusABC):
 
     @staticmethod
     def _detect_available_configs():
+        """A method that is predefined by the python-can abstract class.
+            It contains the default configuration on which the interface can run.
+        """
         configs = [{'interface': 'can2usb',
                     'app_name': None,
                     'channel': 0}]
         return configs
 
-    #receive function for CAN messages. Also converts the format of the CAN2USB frame into the predefined format of python-can
     def _recv_internal(self, timeout):
+        """Contains the receive routine for the CAN2USB device.
+            The data is collected from the device by using the Method readData.
+            The retrieved data is then converted from the CAN2USB framework to the format python-can is expecting.
+            :param timeout: is an optional timeout from the python-can abstract class that is currently not implemented.
+        """
         self._is_filtered = False
         end_time = time.time() + timeout if timeout is not None else None
         try:
@@ -140,7 +198,7 @@ class CAN2BUS(BusABC):
                 data[j - 12] = recvdata[j]
                 # print("Data: " + str(data[j-12]))
             if recvdata[7] == 32:
-                self.errorHandling(self,frameID, data)
+                self.errorHandling(self, frameID, data)
             msg = Message(
                 # timestamp= timestamp - self._time_offset,
                 arbitration_id=frameID,
@@ -149,8 +207,9 @@ class CAN2BUS(BusABC):
             )
             return msg, self._is_filtered
 
-    # readData gets the messages out of the buffer of the CAN2USB device
     def readData(self):
+        """Gets the messages out of the buffer of the CAN2USB device
+        """
         myclasstype = clr.System.Type.GetType("InnoMakerUsb2CanLib.UsbCan, InnoMakerUsb2CanLib")
         method = myclasstype.GetMethod("getInnoMakerDeviceBuf")
         buffer = clr.System.Array.CreateInstance(clr.System.Byte, 20)
@@ -163,16 +222,18 @@ class CAN2BUS(BusABC):
             if readdata[1] == 0 and readdata[2] == 0 and readdata[3] == 0:  # fängt wiederhallende Signale von Send ab
                 return 0
             else:
-                # print("read data successful")
-                # for i in range (0, 20):
-                #    print(readdata[i])
                 return readdata
         else:
-            # print("read data failed")
             return 0
 
     # send function
     def send(self, msg, timeout=None):
+        """Transmits a message to the CAN bus.
+            The method buildDataFrame is used inside this function to convert the msg format from python-can to
+            the format the CAN2USB device expects.
+            :param msg: The message for the CAN device.
+            :param timeout: An optional timeout that is currently not implemented.
+        """
         frame = self.buildDataFrame(msg.arbitration_id, msg.dlc, msg.data)
         result = CAN2BUS.bus.sendInnoMakerDeviceBuf(self.Device, frame, 20)
         if result:
@@ -183,6 +244,12 @@ class CAN2BUS(BusABC):
     # buildDataFrame is used to convert the python-can frame to the format the CAN2USB devices is expecting
     @staticmethod
     def buildDataFrame(frameID, length, data):
+        """Is used to convert the python-can frame to the format the CAN2USB devices is expecting.
+
+            :param frameID: The identifier of the CAN-frame.
+            :param length: The data length carry (DLC) that specifies the length of the data.
+            :param data: The data that will be transmitted in the message
+        """
         frame = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         buffer = struct.pack('H', frameID)
         # dbuffer = struct.pack('>Q', data) # only if data is not already in byte-format
@@ -195,8 +262,11 @@ class CAN2BUS(BusABC):
         # print(frame)
         return frame
 
-    #todo: AddDeviceNotifyDelegate is included in the DLL of Innomaker but the purpose is not yet clear
+    # todo: AddDeviceNotifyDelegate is included in the DLL of Innomaker but the purpose is not yet clear
     def AddDeviceNotifyDelegate(self):
+        """is a function from the InnomakerUsb2CanLib.dll that is currently not in use.
+            It can be used to notify the software when a new device has been pluged in.
+        """
         if self.Device is not None:
             self.shutdown()
             # self.Device = None
@@ -205,16 +275,24 @@ class CAN2BUS(BusABC):
 
     # todo: RemoveDeviceNotifyDelegate is included in the DLL of Innomaker but the purpose is not yet clear
     def RemoveDeviceNotifyDelegate(self):
+        """is a function from the InnomakerUsb2CanLib.dll that is currently not in use.
+            It can be used to notify the software when the connection to a device is lost.
+        """
         if self.Device is not None:
             self.shutdown()
             # self.Device = None
         CAN2BUS.bus.scanInnoMakerDevices()
         self.update()
 
-    #The errorHandling function is called in case something went wrong during the send or receive functions
+    # The errorHandling function is called in case something went wrong during the send or receive functions
     # It prints out the respecting error with a short explanation on the terminal
     @staticmethod
     def errorHandling(self, frameID, data):
+        """is called in case something went wrong during the send or receive process.
+            It prints out the respecting error with a short explanation on the terminal.
+            :param frameID: contains the identifier of the errorframe
+            :param data: contains the data of the errorframe
+        """
         la = 0  # lost arbitration
         cp = 0  # controller problems
         pv = 0  # protocol violations
@@ -416,11 +494,16 @@ class CAN2BUS(BusABC):
 
 
 # The below functions predefine the values of the timing registers of the CAN2USB device
-#Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+# Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
 #      and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
 #      A wrong configuration can lead to the device not being able to send or receive messages.
 
 def Baud20K():
+    """contains the predefined values to configure a bitrate of 20000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+    """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 6
     bittiming.phase_seg1 = 7
@@ -431,6 +514,11 @@ def Baud20K():
 
 
 def Baud33K():
+    """contains the predefined values to configure a bitrate of 33330
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 3
     bittiming.phase_seg1 = 3
@@ -441,6 +529,11 @@ def Baud33K():
 
 
 def Baud40K():
+    """contains the predefined values to configure a bitrate of 40000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 6
     bittiming.phase_seg1 = 7
@@ -451,6 +544,11 @@ def Baud40K():
 
 
 def Baud50K():
+    """contains the predefined values to configure a bitrate of 50000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 6
     bittiming.phase_seg1 = 7
@@ -461,6 +559,11 @@ def Baud50K():
 
 
 def Baud66K():
+    """contains the predefined values to configure a bitrate of 66660
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 3
     bittiming.phase_seg1 = 3
@@ -471,6 +574,11 @@ def Baud66K():
 
 
 def Baud80K():
+    """contains the predefined values to configure a bitrate of 80000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 3
     bittiming.phase_seg1 = 3
@@ -481,6 +589,11 @@ def Baud80K():
 
 
 def Baud83K():
+    """contains the predefined values to configure a bitrate of 83330
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 3
     bittiming.phase_seg1 = 3
@@ -491,6 +604,11 @@ def Baud83K():
 
 
 def Baud100K():
+    """contains the predefined values to configure a bitrate of 100000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 6
     bittiming.phase_seg1 = 7
@@ -501,6 +619,11 @@ def Baud100K():
 
 
 def Baud125K():
+    """contains the predefined values to configure a bitrate of 125000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 6
     bittiming.phase_seg1 = 7
@@ -511,6 +634,11 @@ def Baud125K():
 
 
 def Baud200K():
+    """contains the predefined values to configure a bitrate of 200000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 6
     bittiming.phase_seg1 = 7
@@ -521,6 +649,11 @@ def Baud200K():
 
 
 def Baud250K():
+    """contains the predefined values to configure a bitrate of 250000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 6
     bittiming.phase_seg1 = 7
@@ -531,6 +664,11 @@ def Baud250K():
 
 
 def Baud400K():
+    """contains the predefined values to configure a bitrate of 400000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 3
     bittiming.phase_seg1 = 3
@@ -541,6 +679,11 @@ def Baud400K():
 
 
 def Baud500K():
+    """contains the predefined values to configure a bitrate of 500000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 6
     bittiming.phase_seg1 = 7
@@ -551,6 +694,11 @@ def Baud500K():
 
 
 def Baud666K():
+    """contains the predefined values to configure a bitrate of 666660
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 3
     bittiming.phase_seg1 = 3
@@ -561,6 +709,11 @@ def Baud666K():
 
 
 def Baud800K():
+    """contains the predefined values to configure a bitrate of 800000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 7
     bittiming.phase_seg1 = 8
@@ -571,6 +724,11 @@ def Baud800K():
 
 
 def Baud1M():
+    """contains the predefined values to configure a bitrate of 1000000
+    Note: The values of the different baudrates are the adjusted values from Innomaker for the CAN2USB
+        and should not be altered unless the user has a full understanding of the funcionality of the bittiming registers.
+        A wrong configuration can lead to the device not being able to send or receive messages.
+        """
     bittiming = CAN2BUS.bus.innomaker_device_bittming()
     bittiming.prop_seg = 5
     bittiming.phase_seg1 = 6
