@@ -24,23 +24,24 @@ class CommunicationList:
     def get(self):
         if len(self.queue) > 0:
             arr = self.queue[0]
-            msg = arr[1]
+            msg = arr[2]
+            dlc = arr[1]
             id = bin(arr[0])
             self.queue.remove(arr)
-            return id, msg
-        return None, None
+            return id, dlc, msg
+        return None, None, None
 
-    def put(self, TxId, data, save, timestamp, count=0):
+    def put(self, TxId, dlc, data, save, timestamp, count=0):
         if save is True:  # data
             pass
         else:  # ack
             timestamp = None
-        self.queue.append([TxId, data, save, timestamp, count])
+        self.queue.append([TxId, dlc, data, save, timestamp, count])
         return True
 
     def pop(self, RxId):
         for element in self.queue:
-            if element[2] is True and element[0] == RxId:
+            if element[3] is True and element[0] == RxId:
                 self.queue.remove(element)
                 return True
         return False

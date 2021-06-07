@@ -62,11 +62,11 @@ class canLib:
             if self.canRunning:
                 recv = self.bus.recv(0.001)  # get received msg
                 if recv is not None:
-                    self.recv_msg.put(recv.arbitration_id, recv.data, False, datetime.now())
+                    self.recv_msg.put(recv.arbitration_id, recv.dlc, recv.data, False, datetime.now())
                     print('[INFO -> Input] {}'.format(recv))  # for testing, prints data which are send
 
-    def add_msg(self, type_id, data):
-        self.send_msg.put(type_id, data, True, True, datetime.now())  # add to send list
+    def add_msg(self, type_id, dlc, data):
+        self.send_msg.put(type_id, dlc, data, True, True, datetime.now())  # add to send list
 
     def sendCAN(self):
         """
@@ -79,7 +79,7 @@ class canLib:
                 if not self.send_msg.empty():
                     # Get the Message from the Queue
                     try:
-                        id, mymsg = self.send_msg.get()
+                        id, dlc, mymsg = self.send_msg.get()
                     except:
                         pass
                     finally:
@@ -88,9 +88,9 @@ class canLib:
                             pass  # second
                         else:
                             canid = int(conv.conv_bitarr_to_string(id), 2)  # convert ID to right TxID format
-                            send = conv.conv_int_to_bytes(mymsg, 2)  # convert data in Bytes to send
+                            send = conv.conv_int_to_bytes(mymsg, dlc)  # convert data in Bytes to send
                             # create can message
-                            msg = can.Message(arbitration_id=canid, dlc=2, is_fd=False, is_extended_id=False, data=send)
+                            msg = can.Message(arbitration_id=canid, dlc=dlc, is_fd=False, is_extended_id=False, data=send)
                             try:
                                 self.bus.send(msg)  # send can message
 

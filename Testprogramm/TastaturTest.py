@@ -12,16 +12,16 @@ def on_press(key):
     if k in ['1', '2', '3', '4']:  # keys interested
         # self.keys.append(k) # store it in global-like variables
         if k is '1':
-            can.add_msg(0x16, 0xEE)
+            can.add_msg(0x16, 8, 0x0102030405060708)
 
         elif k is '2':
-            can.add_msg(0x15, 0x3E8)
+            can.add_msg(0x15, 2, 0x3E8)
 
         elif k is '3':
             can.shutdown()
 
         elif k is '4':
-            can.add_msg(0x16, 0x2710)
+            can.add_msg(0x16, 2, 0x2710)
 
 
 if __name__ == "__main__":
