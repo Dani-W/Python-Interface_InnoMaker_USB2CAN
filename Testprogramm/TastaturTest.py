@@ -12,7 +12,7 @@ def on_press(key):
     if k in ['1', '2', '3', '4']:  # keys interested
         # self.keys.append(k) # store it in global-like variables
         if k is '1':
-            can.add_msg(0x16, 8, 0x0102030405060708)
+            can.add_msg(0x320, 8, 0x0102030405060708)
 
         elif k is '2':
             can.add_msg(0x15, 2, 0x3E8)

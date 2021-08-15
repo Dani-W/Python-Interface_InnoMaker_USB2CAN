@@ -15,13 +15,13 @@ How to install (for python-can):
 4. Go back to the interfaces folder and locate the __init__.py (NOT the __init__.py inside the can2usb folder!)
 5. If you open the file there should be a list called BACKENDS. This list contains three parameter: 
    the name of the interface, the folder where it is located and the name of the class.
-   Go to the list and add a new entry: 'interface name':         ('can.interface.can2usb',    'CAN2BUS')
+   Go to the list and add a new entry: 'interface name':         ('can.interface.can2usb',    'InnoMakerBus')
    Instead of interface name you can insert any name you wish for the interface to have.
    For example a new interface with the name myInterface is added:
    
    BACKENDS = {
 	# other interfaces...
-	'myInterface':          ('can.interfaces.can2usb',          'CAN2BUS')
+	'myInterface':          ('can.interfaces.can2usb',          'InnoMakerBus')
    }
 
 How to use:

@@ -1,1 +1,1 @@
-from .CAN2USB import CAN2BUS
+from .InnoMaker import InnoMakerBus

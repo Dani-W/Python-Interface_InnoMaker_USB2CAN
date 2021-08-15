@@ -9,7 +9,7 @@ from datetime import datetime
 
 class canLib:
     # declare interface
-    can.rc['interface'] = 'can2usb'
+    can.rc['interface'] = 'InnoMaker'
     can.rc['channel'] = 0
     can.rc['bitrate'] = 500000
 
